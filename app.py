@@ -1,112 +1,255 @@
 """
-ProofChain — Verifiable AI Agent (Gradio UI)
-Ask -> agent answers -> stored on Walrus -> anchored on Sui -> verify / tamper-check
+ProofChain — Universal verifiable AI (any domain, like ChatGPT + proof)
 """
 
 import gradio as gr
 import agent
 import proofchain
+import memory
+from domains import EXAMPLE_NAMES, get_example, resolve_context
+from ui_theme import CUSTOM_CSS, FOOTER_HTML, HERO_HTML, get_theme
 
 SUI_EXPLORER = "https://suiscan.xyz/testnet/object/"
+PACKAGE_ID = proofchain.PACKAGE_ID
+
+OVERVIEW_MD = """
+<div class="pc-card">
+
+### ChatGPT for decisions — but every answer is provable
+
+ProofChain works for **any domain**: healthcare, legal, finance, education, HR,
+logistics, government, tech — or anything you type. Unlike ChatGPT, every decision is:
+
+| Step | Technology |
+|---|---|
+| Recalled from | **Walrus Memory** (past sessions) |
+| Stored on | **Walrus** (full reasoning blob) |
+| Anchored on | **Sui** (tamper-proof hash) |
+
+```
+Ask anything → Recall memory → Agent answers → Walrus + Sui → Remember for next time
+```
+
+Package `{package_id}`
+
+</div>
+
+<div class="pc-card">
+
+### Demo ideas (examples only — ask anything)
+
+🏥 Healthcare · ⚖️ Legal · 💰 Finance · 🎓 Education · 👥 HR · 📦 Supply Chain
+
+Or type your own: *"Should our startup hire a CTO now?"* · *"Should the city approve the zoning change?"*
+
+</div>
+""".format(package_id=PACKAGE_ID)
 
 
-def do_ask(question, state):
+def _wrap(content: str, style: str = "info") -> str:
+    return f'<div class="pc-result-{style}">\n\n{content}\n\n</div>'
+
+
+def do_ask(question, industry_hint, state):
     if not question.strip():
-        return "Please enter a question.", "", state
-    rec = agent.run(question)
+        return _wrap("⚠️ Type any decision question — any industry, any topic.", "info"), state
+    rec = agent.run(question, industry_hint=industry_hint or "")
     state = rec
-    record_md = f"""
-### ✅ Decision recorded & anchored on-chain
+    ctx = resolve_context(industry_hint or "")
+    recalled = rec.get("memories_recalled") or []
+    memory_lines = "\n".join(f"- {m[:100]}…" if len(m) > 100 else f"- {m}" for m in recalled)
+    memory_section = (
+        f"**Walrus Memory recalled ({len(recalled)}):**\n{memory_lines}"
+        if recalled else "*No related past decisions — this may be a new topic.*"
+    )
+    mem_blob = rec.get("memory_blob_id")
+    mem_row = f"| Walrus Memory | `{mem_blob[:28]}…` |" if mem_blob else ""
 
-**Question:** {rec['question']}
+    body = f"""
+### {ctx['emoji']} Decision Recorded — {ctx['label']}
 
-**Agent answer:** {rec['answer']}
+**Question**  
+{rec['question']}
+
+**Agent Answer**  
+{rec['answer']}
+
+---
+
+{memory_section}
+
+---
 
 | Field | Value |
 |---|---|
-| Agent ID | `{rec['agent_id']}` |
-| Input hash | `{rec['input_hash'][:24]}…` |
-| Output hash | `{rec['output_hash'][:24]}…` |
-| Walrus blob ID | `{rec['walrus_blob_id']}` |
-| Sui record | [{rec['sui_record_id'][:20]}…]({SUI_EXPLORER}{rec['sui_record_id']}) |
-
-*The reasoning is stored verifiably on Walrus; the proof is immutable on Sui.*
+| Context | **{ctx['label']}** |
+| Agent | `{rec['agent_id']}` |
+| Input hash | `{rec['input_hash'][:20]}…` |
+| Output hash | `{rec['output_hash'][:20]}…` |
+| Walrus blob | `{rec['walrus_blob_id'][:28]}…` |
+| Sui record | [View on-chain ↗]({SUI_EXPLORER}{rec['sui_record_id']}) |
+{mem_row}
 """
-    return record_md, "", state
+    return _wrap(body, "success"), state
 
 
 def do_verify(state):
     if not state:
-        return "⚠️ Record a decision first."
+        return _wrap("⚠️ Ask a question first on the **Ask** tab.", "info")
     raw = proofchain.read_from_walrus(state["walrus_blob_id"])
     import json
     data = json.loads(raw)
     recomputed = proofchain.sha256(data["answer"])
-    match = (recomputed == state["output_hash"])
+    match = recomputed == state["output_hash"]
+    domain = state.get("domain", "Any domain")
     if match:
-        return f"""
-### ✅ VERIFIED — untampered
+        return _wrap(f"""
+### ✅ VERIFIED — Untampered
 
-Fetched the original reasoning from Walrus and recomputed its hash.
-It **matches** the hash anchored on Sui.
-
-- On-chain output hash: `{state['output_hash'][:32]}…`
-- Recomputed from Walrus: `{recomputed[:32]}…`
-- **Match: TRUE** — this is provably the exact decision the agent made.
-"""
-    return "🚨 Mismatch — data does not match on-chain proof."
+| | |
+|---|---|
+| Context | **{domain}** |
+| On-chain hash | `{state['output_hash'][:24]}…` |
+| Walrus hash | `{recomputed[:24]}…` |
+| **Result** | **MATCH** |
+""", "success")
+    return _wrap("🚨 Hash mismatch — record may have been altered.", "warn")
 
 
 def do_tamper(state):
     if not state:
-        return "⚠️ Record a decision first."
-    # Simulate someone altering the answer after the fact
-    tampered_answer = state["answer"] + " (secretly altered!)"
-    tampered_hash = proofchain.sha256(tampered_answer)
-    match = (tampered_hash == state["output_hash"])
-    return f"""
+        return _wrap("⚠️ Ask a question first on the **Ask** tab.", "info")
+    tampered = state["answer"] + " (secretly altered!)"
+    tampered_hash = proofchain.sha256(tampered)
+    match = tampered_hash == state["output_hash"]
+    domain = state.get("domain", "Any domain")
+    return _wrap(f"""
 ### 🚨 TAMPERING DETECTED
 
-Someone changed the agent's answer to:
-> *"{tampered_answer}"*
+| | |
+|---|---|
+| Context | **{domain}** |
+| Original hash | `{state['output_hash'][:24]}…` |
+| Tampered hash | `{tampered_hash[:24]}…` |
+| **Match** | **FALSE** |
 
-- Original on-chain hash: `{state['output_hash'][:32]}…`
-- Hash of tampered answer: `{tampered_hash[:32]}…`
-- **Match: {str(match).upper()}** → the proof **fails**.
+> *"{tampered}"*
 
-Because the hash is anchored immutably on Sui, **any change is instantly detectable.**
-This is the core guarantee of ProofChain.
-"""
+Any change after the fact is instantly detectable. That is ProofChain.
+""", "warn")
+
+
+def do_memory():
+    if not memory.is_configured():
+        return _wrap("⚠️ Walrus Memory not configured.", "info")
+    items = memory.list_recent_memories()
+    if not items:
+        return _wrap("*No memories yet. Ask any question on the **Ask** tab.*", "info")
+    lines = []
+    for i, m in enumerate(items, 1):
+        blob = f"`{m['blob_id'][:14]}…`" if m.get("blob_id") else ""
+        text = m["text"][:150] + ("…" if len(m["text"]) > 150 else "")
+        lines.append(f"**{i}.** {text} {blob}")
+    return _wrap("### 🧠 Walrus Memory — all your decisions\n\n" + "\n\n".join(lines), "info")
+
+
+def load_example(name):
+    ex = get_example(name)
+    return ex["question"], name
+
+
+def load_followup(name):
+    ex = get_example(name)
+    return ex["followup"], name
 
 
 with gr.Blocks(title="ProofChain") as demo:
-    gr.Markdown(
-        "# 🔗 ProofChain\n"
-        "### Verifiable AI Agent — every decision provably stored on Walrus & anchored on Sui\n"
-        "Local AI agent (offline) · Walrus verifiable memory · Sui immutable proof"
-    )
+    gr.HTML(HERO_HTML)
     state = gr.State(None)
+    selected_example = gr.State("")
 
-    with gr.Row():
-        question = gr.Textbox(
-            label="Ask the agent a decision question",
-            placeholder="e.g. Should we approve this loan based on the provided data?",
-            scale=4,
-        )
-        ask_btn = gr.Button("Ask & Record", variant="primary", scale=1)
+    with gr.Tabs():
+        with gr.Tab("📋 Overview"):
+            gr.Markdown(OVERVIEW_MD)
 
-    record_out = gr.Markdown()
+        with gr.Tab("💬 Ask"):
+            gr.Markdown(
+                '<div class="pc-card">'
+                "<b>Ask anything</b> — any industry, any decision. "
+                "Optional industry hint tailors the agent. Every answer is recorded on Walrus + Sui."
+                "</div>"
+            )
+            question = gr.Textbox(
+                label="Your question (any domain)",
+                lines=3,
+                placeholder=(
+                    "e.g. Should we approve this decision? "
+                    "(healthcare, legal, finance, education, HR, tech — anything)"
+                ),
+            )
+            industry_hint = gr.Textbox(
+                label="Industry context (optional)",
+                placeholder="Leave blank for universal — or type: Healthcare, Legal, Real Estate, …",
+            )
+            gr.Markdown("**Example questions** — click to load (not a limit on what you can ask):")
+            with gr.Row():
+                for name in EXAMPLE_NAMES:
+                    gr.Button(f"{get_example(name)['emoji']} {name}", size="sm").click(
+                        lambda n=name: (*load_example(n), n),
+                        outputs=[question, industry_hint, selected_example],
+                    )
+            with gr.Row():
+                ask_btn = gr.Button("Ask & Record →", variant="primary", scale=3)
+                followup_btn = gr.Button("🔄 Follow-up to last example", size="sm")
+            record_out = gr.Markdown()
 
-    with gr.Row():
-        verify_btn = gr.Button("🔍 Verify integrity")
-        tamper_btn = gr.Button("🚨 Simulate tampering")
+            def do_followup(example_name):
+                if not example_name:
+                    return "What did we decide last time?", ""
+                q, hint = load_followup(example_name)
+                return q, hint
 
-    verify_out = gr.Markdown()
+            followup_btn.click(do_followup, selected_example, [question, industry_hint])
 
-    ask_btn.click(do_ask, [question, state], [record_out, question, state])
+        with gr.Tab("🧠 Memory"):
+            gr.Markdown(
+                '<div class="pc-card">All decisions remembered — any domain, one Walrus Memory.</div>'
+            )
+            memory_btn = gr.Button("Load past decisions", variant="secondary")
+            memory_out = gr.Markdown()
+            memory_btn.click(do_memory, [], memory_out)
+
+        with gr.Tab("🔐 Verify"):
+            gr.Markdown('<div class="pc-card">Verify integrity or simulate tampering.</div>')
+            with gr.Row():
+                verify_btn = gr.Button("✅ Verify integrity", variant="secondary")
+                tamper_btn = gr.Button("🚨 Simulate tampering", variant="primary")
+            verify_out = gr.Markdown()
+
+        with gr.Tab("⛓️ On-chain"):
+            gr.Markdown(f"""
+<div class="pc-card">
+
+### Sui testnet — one proof layer for all domains
+
+| | |
+|---|---|
+| Package ID | `{PACKAGE_ID}` |
+| Module | `audit_log` |
+| Agent | `proofchain-agent-001` (universal) |
+| Walrus Memory | `proofchain` (all domains) |
+
+Every decision — regardless of industry — gets an on-chain Sui record.
+
+</div>
+""")
+
+    gr.HTML(FOOTER_HTML)
+
+    ask_btn.click(do_ask, [question, industry_hint, state], [record_out, state])
     verify_btn.click(do_verify, [state], [verify_out])
     tamper_btn.click(do_tamper, [state], [verify_out])
 
 
 if __name__ == "__main__":
-    demo.launch(share=False)
+    demo.launch(share=False, theme=get_theme(), css=CUSTOM_CSS)
