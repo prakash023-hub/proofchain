@@ -39,7 +39,8 @@ ProofChain is like ChatGPT for high-stakes decisions in **any domain** (healthca
 
 **Why Walrus:** We use both Walrus blob storage AND the newly launched Walrus Memory (June 2026) — making ProofChain one of the first production-style apps built on the full Walrus AI memory stack.
 
-**Live contract:** `0xf97628ba29937a7846cc83a077d04b9d0535bbc9f2107bbe5572bd21189eb809` (Sui testnet)
+**Live contract (v2):** `0x352fffa5eb8f0f8b63ee100efc8373e1abffa2ad3f0eece9a12617d4f8764809` (Sui testnet)  
+**Move functions:** `log_and_certify` (mints DecisionCredential) · `DecisionRegistry` on-chain counter
 
 ---
 
@@ -79,8 +80,9 @@ Requires: Sui CLI, Walrus CLI, Ollama — see README.md.
 ## Checklist before submit
 
 - [x] GitHub repo: `prakash023-hub/proofchain`
-- [ ] Push to public GitHub
-- [ ] Record 2-min demo video
+- [ ] Push Move v2 upgrade to GitHub (pending commit)
+- [ ] Record demo video (≤5 min, YouTube)
 - [ ] Add video URL above
-- [ ] Submit on DeepSurge
-- [ ] Wallet connected on DeepSurge
+- [ ] Submit on DeepSurge (deadline: **June 20, 2026**)
+- [ ] Wallet connected on DeepSurge profile
+- [ ] Select track: **Special - Walrus**

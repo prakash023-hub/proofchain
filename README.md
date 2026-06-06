@@ -44,7 +44,7 @@ flowchart LR
 | Agent | Ollama (local) | Decision + reasoning — no cloud API |
 | Memory | Walrus Memory (`memwal`) | Recall past decisions across sessions |
 | Storage | Walrus CLI | Full reasoning blobs off-chain |
-| Proof | Sui Move contract | Immutable hash anchor on testnet |
+| Proof | Sui Move contract | `log_and_certify` — shared record + registry + credential mint |
 
 ---
 
@@ -54,8 +54,13 @@ flowchart LR
 |---|---|
 | Package ID | `0xf97628ba29937a7846cc83a077d04b9d0535bbc9f2107bbe5572bd21189eb809` |
 | Module | `audit_log` |
-| Function | `log_decision` |
-| Explorer | [View package on SuiScan](https://suiscan.xyz/testnet/object/0xf97628ba29937a7846cc83a077d04b9d0535bbc9f2107bbe5572bd21189eb809) |
+| Primary function | `log_and_certify` (mints `DecisionCredential`) |
+| Legacy function | `log_decision` |
+| Move tests | `cd audit_log && sui move test` |
+| Upgrade guide | [audit_log/DEPLOY.md](audit_log/DEPLOY.md) |
+| Package ID (v2) | `0x352fffa5eb8f0f8b63ee100efc8373e1abffa2ad3f0eece9a12617d4f8764809` |
+| Registry ID | `0x23c42a96b6272bc85d81eb25a9069ffa720b60243c784d1e1daf357e5beb65fa` |
+| Explorer | [View package on SuiScan](https://suiscan.xyz/testnet/object/0x352fffa5eb8f0f8b63ee100efc8373e1abffa2ad3f0eece9a12617d4f8764809) |
 
 ---
 

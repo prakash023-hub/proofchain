@@ -64,6 +64,12 @@ def do_ask(question, industry_hint, state):
     )
     mem_blob = rec.get("memory_blob_id")
     mem_row = f"| Walrus Memory | `{mem_blob[:28]}…` |" if mem_blob else ""
+    cred_id = rec.get("sui_credential_id")
+    cred_row = (
+        f"| DecisionCredential (Move) | [View NFT ↗]({SUI_EXPLORER}{cred_id}) |"
+        if cred_id else ""
+    )
+    move_fn = rec.get("move_function", "log_decision")
 
     body = f"""
 ### {ctx['emoji']} Decision Recorded — {ctx['label']}
@@ -88,7 +94,9 @@ def do_ask(question, industry_hint, state):
 | Output hash | `{rec['output_hash'][:20]}…` |
 | Walrus blob | `{rec['walrus_blob_id'][:28]}…` |
 | Sui record | [View on-chain ↗]({SUI_EXPLORER}{rec['sui_record_id']}) |
+| Move function | `{move_fn}` |
 {mem_row}
+{cred_row}
 """
     return _wrap(body, "success"), state
 
@@ -230,16 +238,18 @@ with gr.Blocks(title="ProofChain") as demo:
             gr.Markdown(f"""
 <div class="pc-card">
 
-### Sui testnet — one proof layer for all domains
+### Sui Move — on-chain proof layer
 
 | | |
 |---|---|
 | Package ID | `{PACKAGE_ID}` |
-| Module | `audit_log` |
-| Agent | `proofchain-agent-001` (universal) |
-| Walrus Memory | `proofchain` (all domains) |
+| Module | `audit_log` (Move) |
+| Primary entry | `log_and_certify` |
+| Move objects | `DecisionRecord` · `DecisionRegistry` · `DecisionCredential` |
 
-Every decision — regardless of industry — gets an on-chain Sui record.
+Each decision: shared audit record + registry counter + credential minted to wallet.
+
+Upgrade guide: `audit_log/DEPLOY.md`
 
 </div>
 """)
