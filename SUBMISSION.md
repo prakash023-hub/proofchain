@@ -45,7 +45,7 @@ ProofChain is like ChatGPT for high-stakes decisions in **any domain** (healthca
 
 ## GitHub repository
 
-`https://github.com/prakashrajk/proofchain`
+`https://github.com/prakash023-hub/proofchain`
 
 ---
 
@@ -58,7 +58,7 @@ ProofChain is like ChatGPT for high-stakes decisions in **any domain** (healthca
 ## How to run
 
 ```bash
-git clone https://github.com/prakashrajk/proofchain.git
+git clone https://github.com/prakash023-hub/proofchain.git
 cd proofchain && python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # add Walrus Memory delegate key
@@ -78,7 +78,7 @@ Requires: Sui CLI, Walrus CLI, Ollama — see README.md.
 
 ## Checklist before submit
 
-- [x] GitHub username set to `prakashrajk`
+- [x] GitHub repo: `prakash023-hub/proofchain`
 - [ ] Push to public GitHub
 - [ ] Record 2-min demo video
 - [ ] Add video URL above
