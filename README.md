@@ -72,7 +72,7 @@ flowchart LR
 ### Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/proofchain.git
+git clone https://github.com/prakashrajk/proofchain.git
 cd proofchain
 python3 -m venv venv
 source venv/bin/activate
