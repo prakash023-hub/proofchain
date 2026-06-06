@@ -89,10 +89,17 @@ def log_on_sui(agent_id, input_hash, output_hash, blob_id, timestamp) -> str:
     return record_id
 
 
-def record_decision(agent_id: str, question: str, answer: str, reasoning: str) -> dict:
+def record_decision(
+    agent_id: str,
+    question: str,
+    answer: str,
+    reasoning: str,
+    domain: str = "",
+) -> dict:
     """Full flow: package the decision, store on Walrus, anchor on Sui."""
     payload = json.dumps({
         "agent": agent_id,
+        "domain": domain,
         "question": question,
         "answer": answer,
         "reasoning": reasoning,
@@ -113,6 +120,7 @@ def record_decision(agent_id: str, question: str, answer: str, reasoning: str) -
 
     return {
         "agent_id": agent_id,
+        "domain": domain,
         "question": question,
         "answer": answer,
         "input_hash": input_hash,

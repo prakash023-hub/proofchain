@@ -1,26 +1,30 @@
 """
-ProofChain Agent — autonomous AI agent (local Ollama, zero cost/offline)
-whose every decision is stored verifiably on Walrus and anchored on Sui.
+ProofChain Agent — universal decision agent (any domain, like ChatGPT)
+Every decision stored on Walrus Memory + Walrus + Sui.
 """
 
 import json
 import requests
 import proofchain
+import memory
+from domains import JSON_SUFFIX, get_example, resolve_context
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "gemma3:1b"
-AGENT_ID = "proofchain-agent-001"
-
-SYSTEM_PROMPT = (
-    "You are a careful decision-support agent. For each question give a clear "
-    "answer and a short reasoning. Respond ONLY as compact JSON with exactly two "
-    "keys: \"answer\" (a sentence) and \"reasoning\" (a sentence). "
-    "No markdown, no code fences, no extra text."
-)
 
 
-def ask_agent(question: str) -> dict:
-    prompt = f"{SYSTEM_PROMPT}\n\nQuestion: {question}\n\nJSON:"
+def ask_agent(
+    question: str,
+    context: dict,
+    past_memories: list[str] | None = None,
+) -> dict:
+    memory_block = ""
+    if past_memories:
+        lines = "\n".join(f"- {m}" for m in past_memories)
+        memory_block = f"\n\nPast decisions from Walrus Memory:\n{lines}\n"
+
+    system = context["prompt"] + JSON_SUFFIX
+    prompt = f"{system}{memory_block}\n\nQuestion: {question}\n\nJSON:"
     resp = requests.post(OLLAMA_URL, json={
         "model": MODEL,
         "prompt": prompt,
@@ -39,7 +43,6 @@ def ask_agent(question: str) -> dict:
     except json.JSONDecodeError:
         answer = text
 
-    # Always return clean strings, never crash on missing keys
     if answer is None:
         answer = text or "(no answer)"
     if reasoning is None:
@@ -47,29 +50,54 @@ def ask_agent(question: str) -> dict:
     return {"answer": str(answer), "reasoning": str(reasoning)}
 
 
-def run(question: str) -> dict:
-    print(f"\n🤖 Agent thinking about: {question}\n")
-    result = ask_agent(question)
+def run(question: str, industry_hint: str = "") -> dict:
+    ctx = resolve_context(industry_hint)
+    label = ctx["label"]
+    print(f"\n🤖 ProofChain [{label}] — {question}\n")
+
+    print("→ Recalling relevant past decisions from Walrus Memory...")
+    past = memory.recall_for_question(
+        question,
+        namespace=ctx["namespace"],
+        domain=label if label != "Any domain" else None,
+    )
+    if past:
+        print(f"  Found {len(past)} relevant memory(ies)")
+    else:
+        print("  No prior memories (or first question)")
+
+    result = ask_agent(question, ctx, past_memories=past or None)
     print(f"  Answer: {result['answer']}")
     print(f"  Reasoning: {result['reasoning']}\n")
 
     record = proofchain.record_decision(
-        agent_id=AGENT_ID,
+        agent_id=ctx["agent_id"],
         question=question,
         answer=result["answer"],
         reasoning=result["reasoning"],
+        domain=label,
     )
+
+    print("→ Remembering in Walrus Memory...")
+    mem_blob = memory.remember_decision(
+        domain=label,
+        namespace=ctx["namespace"],
+        question=question,
+        answer=result["answer"],
+        reasoning=result["reasoning"],
+        walrus_blob_id=record["walrus_blob_id"],
+        sui_record_id=record["sui_record_id"],
+    )
+    record["domain"] = label
+    record["industry_hint"] = industry_hint
+    record["memories_recalled"] = past
+    record["memory_blob_id"] = mem_blob
     return record
 
 
 if __name__ == "__main__":
     import sys
-    q = sys.argv[1] if len(sys.argv) > 1 else \
-        "Should a small clinic adopt a new electronic record system this year?"
-    rec = run(q)
-    print("\n--- Verifiable record created ---")
+    hint = sys.argv[1] if len(sys.argv) > 1 else ""
+    q = sys.argv[2] if len(sys.argv) > 2 else "Should we proceed with this decision?"
+    rec = run(q, industry_hint=hint)
     print(json.dumps(rec, indent=2))
-
-    print("\n=== Verifying integrity ===")
-    v = proofchain.verify_decision(rec["walrus_blob_id"], expected_answer=rec["answer"])
-    print(f"✅ Verified: {v['verified']}")
