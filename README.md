@@ -1,5 +1,9 @@
 # ProofChain
 
+<p align="center">
+  <img src="assets/logo.png" alt="ProofChain" width="160" />
+</p>
+
 **Verifiable AI audit trail — like ChatGPT for any decision, but every answer is provable.**
 
 ProofChain is an autonomous AI agent whose every decision is stored on **Walrus Memory**, archived on **Walrus**, and anchored on **Sui**. Anyone can later prove exactly what the AI decided, when, and based on what — and instantly detect tampering.
@@ -103,7 +107,8 @@ ollama serve
 
 # Terminal 2 — ProofChain UI
 source venv/bin/activate
-python app.py
+python app.py              # local: http://127.0.0.1:7860
+python app.py --share      # optional: 72h public gradio.live link for judges
 ```
 
 Open `http://127.0.0.1:7860`
@@ -152,6 +157,18 @@ proofchain/
 | Primary track | **Walrus** |
 | Also demonstrates | Agentic Web (autonomous agent acts on Sui) |
 | Deadline | June 21, 2026 |
+| Submission pack | [SUBMISSION.md](SUBMISSION.md) — copy-paste DeepSurge form + video script |
+| Logo | [assets/logo.png](assets/logo.png) (1:1 for DeepSurge) |
+
+**Judging focus (50%):** real-world application — AI audit trail for healthcare, legal, finance.  
+**Demo moment:** Simulate tampering → hash mismatch → proof of integrity.
+
+### Mainnet roadmap (post-hackathon)
+
+1. Deploy Move package to Sui mainnet (upgrade path in `audit_log/DEPLOY.md`)
+2. Production Walrus Memory + Walrus epochs for enterprise retention
+3. Hosted demo + API for hospital/legal workflow integrations
+4. Optional: Seal for encrypted decision blobs before Walrus store
 
 ---
 

@@ -262,4 +262,6 @@ Upgrade guide: `audit_log/DEPLOY.md`
 
 
 if __name__ == "__main__":
-    demo.launch(share=False, theme=get_theme(), css=CUSTOM_CSS)
+    import sys
+    share = "--share" in sys.argv
+    demo.launch(share=share, theme=get_theme(), css=CUSTOM_CSS)
